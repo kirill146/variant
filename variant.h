@@ -154,9 +154,6 @@ struct storage {
 	template <typename STORAGE>
 	void assign_storage(size_t ind, STORAGE&& other) {} // unreachable
 
-	template <typename STORAGE>
-	void swap_storages(size_t ind, STORAGE&& other) {} // unreachable
-
 	constexpr storage() = default;
 
 	~storage() = default;
@@ -195,16 +192,6 @@ struct storage<trivially_destructible, T0, Ts...> {
 		}
 		else {
 			tail.assign_storage(ind - 1, std::forward<STORAGE>(other).tail);
-		}
-	}
-
-	template <typename STORAGE>
-	void swap_storages(size_t ind, STORAGE&& other) {
-		if (ind == 0) {
-			std::swap(head, other.head);
-		}
-		else {
-			tail.swap_storages(ind - 1, std::forward<STORAGE>(other).tail);
 		}
 	}
 
@@ -257,16 +244,6 @@ struct storage<true, T0, Ts...> {
 		}
 		else {
 			tail.assign_storage(ind - 1, std::forward<STORAGE>(other).tail);
-		}
-	}
-
-	template <typename STORAGE>
-	void swap_storages(size_t ind, STORAGE&& other) {
-		if (ind == 0) {
-			std::swap(head, other.head);
-		}
-		else {
-			tail.swap_storages(ind - 1, std::forward<STORAGE>(other).tail);
 		}
 	}
 
@@ -648,7 +625,11 @@ struct variant : default_constructible_storage_t<T0, Ts...> {
 			this->ind = variant_npos;
 		}
 		else if (this->ind == other.ind) {
-			this->swap_storages(other.ind, other);
+			visit([](auto& a, auto& b) constexpr {
+				if constexpr(std::is_same_v<decltype(a), decltype(b)>) {
+					std::swap(a, b);
+				}
+			}, *this, other);
 		}
 		else {
 			variant tmp(std::move(*this));
